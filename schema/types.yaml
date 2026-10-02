@@ -1,0 +1,231 @@
+# Ýmir ops data model.
+#
+# Each type becomes one tab in the Google Sheet. Every tab also gets the
+# common columns listed under `common`. Adding a type or a field here is the
+# whole change: rebuild the sheet and the new tab/column appears.
+
+common:
+  - {name: status,   help: "Lifecycle state; allowed values are listed per type"}
+  - {name: basis,    help: "notes = stated in the vault's own notes; proposal = only in the Operations/ synthesis"}
+  - {name: conflict, help: "Set when two notes disagree; says what disagrees with what"}
+  - {name: source,   help: "Vault note(s) the row came from"}
+  - {name: quote,    help: "Short quote from the source note"}
+  - {name: origin,   help: "extracted = written by the extraction; human = edited by a person (never overwritten)"}
+
+types:
+  # --- Direction -----------------------------------------------------------
+  - name: Principle
+    prefix: PR
+    group: Direction
+    description: Vision, mission, values and rules of thumb the club holds itself to.
+    status: [held, draft, proposed]
+    fields:
+      - {name: kind, values: [vision, mission, value, rule, launch-test, tenet, draft-commitment]}
+      - {name: text}
+
+  - name: Goal
+    prefix: G
+    group: Direction
+    description: An outcome with something you could measure.
+    status: [active, draft]
+    fields:
+      - {name: metric}
+      - {name: target}
+      - {name: horizon}
+
+  - name: Priority
+    prefix: P
+    group: Direction
+    description: A ranked commitment for the season (tiers 0-3) or a deliberately parked item.
+    status: [active, done, parked, dropped]
+    fields:
+      - {name: rank, help: "Tier.position, e.g. 0.1"}
+      - {name: tier, values: ["0 now", "1 foundation", "2 shape of 2027", "3 spring readiness", parked]}
+      - {name: why}
+      - {name: due}
+
+  - name: Decision
+    prefix: D
+    group: Direction
+    description: A question the club has to settle, from open to decided.
+    status: [open, decided, parked]
+    fields:
+      - {name: decides, help: "Body that decides; who proposes"}
+      - {name: decide_by}
+      - {name: options}
+      - {name: outcome}
+
+  - name: Task
+    prefix: T
+    group: Direction
+    description: One action with an owner and a due date.
+    status: [open, done]
+    fields:
+      - {name: owner}
+      - {name: due}
+      - {name: urgency, values: [now, winter, when there's room]}
+      - {name: workstream}
+
+  - name: Milestone
+    prefix: M
+    group: Direction
+    description: A fixed date the plan hangs on.
+    status: [upcoming, passed, proposed]
+    fields:
+      - {name: date}
+      - {name: kind, values: [gate, deadline, event, season]}
+      - {name: must_be_true}
+
+  # --- Structure -----------------------------------------------------------
+  - name: Division
+    prefix: DV
+    group: Structure
+    description: Everyone who does one sport (deild). Not the same as its committee.
+    status: [active, proposed]
+    fields:
+      - {name: scope}
+
+  - name: Body
+    prefix: B
+    group: Structure
+    description: A group of named people who answer for something (stjórn, nefndir, other groups).
+    status: [active, proposed]
+    fields:
+      - {name: kind, values: [board, committee, parents, volunteer group, work group]}
+      - {name: remit}
+
+  - name: Function
+    prefix: F
+    group: Structure
+    description: Shared work no single division owns.
+    status: [unowned, owned]
+    fields:
+      - {name: covers}
+      - {name: owner}
+      - {name: second}
+
+  - name: Person
+    prefix: PE
+    group: Structure
+    description: Adults named in the notes. Roles live in Links.
+    status: [active]
+    fields:
+      - {name: aka}
+      - {name: note}
+
+  - name: Organisation
+    prefix: O
+    group: Structure
+    description: Bodies outside the club.
+    status: [active]
+    fields:
+      - {name: kind, values: [municipality, club, federation, partner, supplier, school, platform, funder, other]}
+      - {name: relationship}
+
+  - name: Place
+    prefix: PL
+    group: Structure
+    description: Where things happen.
+    status: [in use, possible, at risk]
+    fields:
+      - {name: kind, values: [site, building, room, water, abroad]}
+      - {name: note}
+
+  # --- Activity & money ----------------------------------------------------
+  - name: Programme
+    prefix: PG
+    group: Activity
+    description: Something the club runs or offers (the vault's `operation` notes, plus courses, events and services).
+    status: [running, planned, idea, parked]
+    fields:
+      - {name: kind, values: [námskeið, training, rental, event, recreation, service, volunteer, project]}
+      - {name: season}
+      - {name: frequency}
+
+  - name: Asset
+    prefix: A
+    group: Activity
+    description: Boats and equipment, by class where that is how the notes count them.
+    status: [owned, wanted, offered, lost]
+    fields:
+      - {name: kind, values: [dinghy, keelboat, rowing, kayak, board, support boat, equipment, infrastructure]}
+      - {name: quantity}
+      - {name: condition}
+
+  - name: Price
+    prefix: PC
+    group: Activity
+    description: One line of the rate card (gjaldskrá), current or proposed.
+    status: [current, proposed, idea]
+    fields:
+      - {name: amount_isk}
+      - {name: unit}
+      - {name: season}
+
+  - name: Figure
+    prefix: FG
+    group: Activity
+    description: A cost, income or count from the notes, labelled by how reliable it is.
+    status: [recorded]
+    fields:
+      - {name: amount}
+      - {name: unit}
+      - {name: period}
+      - {name: kind, values: [cost, income, grant, count, rate, gap]}
+      - {name: confidence, values: [actual, estimate, assumption, unverified]}
+
+  - name: Funding
+    prefix: FU
+    group: Activity
+    description: Grants, subsidies and other money sources, with their yearly cycle.
+    status: [active, applied, idea]
+    fields:
+      - {name: kind, values: [grant, subsidy, sponsorship, campaign, cash-flow]}
+      - {name: cycle}
+      - {name: next_deadline}
+
+  # --- Record --------------------------------------------------------------
+  - name: Meeting
+    prefix: MT
+    group: Record
+    description: A meeting the notes record. Decisions and tasks link back to it.
+    status: [held, planned]
+    fields:
+      - {name: date}
+      - {name: attendance}
+
+  - name: Insight
+    prefix: I
+    group: Record
+    description: A diagnosis or observation (SWOT items, impediments, things the club has noticed about itself).
+    status: [open, addressed]
+    fields:
+      - {name: kind, values: [strength, weakness, opportunity, threat, impediment, observation]}
+      - {name: text}
+
+# Relations used in the Links tab. `from` and `to` are type names; * = any.
+relations:
+  - {name: serves,      from: Priority,  to: Goal,        meaning: "Doing this moves the goal"}
+  - {name: addresses,   from: "*",       to: Insight,     meaning: "Responds to this diagnosis"}
+  - {name: advances,    from: Task,      to: Priority,    meaning: "This task is part of the priority"}
+  - {name: blocks,      from: Decision,  to: Priority,    meaning: "The priority can't finish until this is decided"}
+  - {name: due_at,      from: "*",       to: Milestone,   meaning: "Has to be true by this date"}
+  - {name: decided_by,  from: Decision,  to: Body,        meaning: "Body that makes the call"}
+  - {name: proposed_by, from: Decision,  to: Body,        meaning: "Body that brings the proposal"}
+  - {name: belongs_to,  from: "*",       to: Division,    meaning: "Part of this division"}
+  - {name: part_of,     from: "*",       to: "*",         meaning: "Component of something larger"}
+  - {name: runs,        from: Body,      to: Division,    meaning: "Committee that answers for the division"}
+  - {name: member_of,   from: Person,    to: Body,        meaning: "Sits on this body"}
+  - {name: leads,       from: Person,    to: "*",         meaning: "Named lead or owner"}
+  - {name: second_for,  from: Person,    to: "*",         meaning: "Named second"}
+  - {name: owned_by,    from: Task,      to: Function,    meaning: "Task sits in this shared function's workstream"}
+  - {name: runs_at,     from: Programme, to: Place,       meaning: "Happens here"}
+  - {name: leads_to,    from: Programme, to: Programme,   meaning: "Pathway: participants move on to this"}
+  - {name: priced_as,   from: Programme, to: Price,       meaning: "What it costs a participant"}
+  - {name: describes,   from: Figure,    to: "*",         meaning: "Cost, income or count about this"}
+  - {name: funds,       from: Funding,   to: "*",         meaning: "Money from this source pays for it"}
+  - {name: provided_by, from: Funding,   to: Organisation, meaning: "Who gives the money"}
+  - {name: uses,        from: Programme, to: Asset,       meaning: "Needs these boats or equipment"}
+  - {name: raised_in,   from: "*",       to: Meeting,     meaning: "Came up in this meeting"}
+  - {name: partners,    from: "*",       to: Organisation, meaning: "Done with this organisation"}
+  - {name: replaces,    from: "*",       to: "*",         meaning: "Takes the place of"}
