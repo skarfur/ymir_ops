@@ -178,8 +178,9 @@ def write_type_tab(wb, t, table, schema):
             cell.alignment = Alignment(wrap_text=col in WIDE, vertical="top")
             if col == "conflict" and value:
                 cell.fill = CONFLICT_FILL
-        ws.cell(row=r, column=len(columns),
-                value=f'=COUNTIF(Links!$A:$A,$A{r})+COUNTIF(Links!$D:$D,$A{r})').font = BODY_FONT
+    # One formula fills the whole column, so rows added later are counted too.
+    ws.cell(row=2, column=len(columns),
+            value='=ARRAYFORMULA(IF(A2:A="","",COUNTIF(Links!A:A,A2:A)+COUNTIF(Links!D:D,A2:A)))').font = BODY_FONT
     for i, col in enumerate(columns, 1):
         spec = next((f for f in t["fields"] if f["name"] == col), None)
         values = (spec or {}).get("values") or (t["status"] if col == "status" else COMMON_VALUES.get(col))
@@ -207,12 +208,12 @@ def write_links(wb, links):
     for c, w in zip("ABCDEFGHI", (18, 12, 14, 18, 12, 36, 44, 44, 10)):
         ws.column_dimensions[c].width = w
     for r, (frm, ft, rel, to, tt, src) in enumerate(links, 2):
-        values = [frm, ft, rel, to, tt, src,
-                  f"=IFERROR(VLOOKUP($A{r},INDIRECT(\"'\"&$B{r}&\"'!A:B\"),2,FALSE),\"\")",
-                  f"=IFERROR(VLOOKUP($D{r},INDIRECT(\"'\"&$E{r}&\"'!A:B\"),2,FALSE),\"\")",
-                  "extracted"]
-        for c, v in enumerate(values, 1):
-            ws.cell(row=r, column=c, value=v).font = BODY_FONT
+        for c, v in enumerate([frm, ft, rel, to, tt, src, None, None, "extracted"], 1):
+            if v is not None:
+                ws.cell(row=r, column=c, value=v).font = BODY_FONT
+    for col, key in (("G", "A"), ("H", "D")):
+        ws[f"{col}2"] = (f'=ARRAYFORMULA(IF({key}2:{key}="","",'
+                         f'IFERROR(VLOOKUP({key}2:{key},_Index!A:B,2,FALSE),"(missing)")))')
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:I{len(links) + 1}"
 
@@ -239,21 +240,32 @@ def write_meta(wb, schema):
     ws.freeze_panes = "A2"
 
 
-def write_review(wb, rows, schema):
+def column_letter(t, schema, name):
+    common = [c["name"] for c in schema["common"]]
+    columns = ["id", "name", *(f["name"] for f in t["fields"]), *common, "links"]
+    return get_column_letter(columns.index(name) + 1)
+
+
+def write_review(wb, schema):
+    """Live list of every row with a conflict, across all type tabs."""
     ws = wb.create_sheet("Review", 1)
-    columns = ["type", "id", "name", "conflict", "source"]
-    style_header(ws, columns)
-    for c, w in zip("ABCDE", (12, 16, 48, 60, 40)):
+    style_header(ws, ["id", "name", "conflict", "source"])
+    for c, w in zip("ABCD", (18, 48, 60, 40)):
         ws.column_dimensions[c].width = w
-    r = 2
+    parts = []
     for t in schema["types"]:
-        for row in sorted(rows[t["name"]].values(), key=sort_key):
-            if row.get("conflict"):
-                for c, v in enumerate([t["name"], row["id"], row["name"], row["conflict"], row.get("source", "")], 1):
-                    cell = ws.cell(row=r, column=c, value=v)
-                    cell.alignment = Alignment(wrap_text=True, vertical="top")
-                r += 1
+        n, cf, src = t["name"], column_letter(t, schema, "conflict"), column_letter(t, schema, "source")
+        parts.append(f"{{{n}!A2:B,{n}!{cf}2:{cf},{n}!{src}2:{src}}}")
+    ws["A2"] = "=QUERY({" + ";".join(parts) + "},\"select * where Col3 is not null and Col3 <> ''\",0)"
     ws.freeze_panes = "A2"
+
+
+def write_index(wb, schema):
+    """Every id and name in one place, for the name lookups on the Links tab."""
+    ws = wb.create_sheet("_Index")
+    style_header(ws, ["id", "name"])
+    stacked = ";".join(f"{t['name']}!A2:B" for t in schema["types"])
+    ws["A2"] = f'=QUERY({{{stacked}}},"select * where Col1 is not null",0)'
 
 
 def write_start(wb, schema):
@@ -281,7 +293,9 @@ def write_start(wb, schema):
         lines.append((t["name"], f"=COUNTA('{t['name']}'!A:A)-1", t["description"]))
     lines += [("Links", "=COUNTA(Links!A:A)-1", "Every relationship between rows: from, relation, to, and the note it came from"),
               ("Review", "=COUNTA(Review!A:A)-1", "Rows where the notes contradict each other"),
-              ("_Types / _Relations", None, "The schema. To add a type or field, change schema/types.yaml in skarfur/ymir_ops and rebuild")]
+              ("_Types / _Relations", None, "The schema. To add a type or field, change schema/types.yaml in skarfur/ymir_ops and rebuild"),
+              ("Broken links", '=COUNTIF(Links!G:H,"(missing)")', "Links whose from or to id doesn't exist in any tab. Should be 0; filter the Links tab for (missing) to find them"),
+              ("_Index", "=COUNTA(_Index!A:A)-1", "Every id and name across all tabs, used by the Links name columns. Don't edit")]
     for r, (a, b, c) in enumerate(lines, 1):
         ws.cell(row=r, column=1, value=a)
         if b:
@@ -312,8 +326,9 @@ def main(data_dir, out):
     for t in schema["types"]:
         write_type_tab(wb, t, rows[t["name"]], schema)
     write_links(wb, links)
-    write_review(wb, rows, schema)
+    write_review(wb, schema)
     write_meta(wb, schema)
+    write_index(wb, schema)
     wb.save(out)
     for t in schema["types"]:
         print(f"{t['name']:<13}{len(rows[t['name']]):>4}")
